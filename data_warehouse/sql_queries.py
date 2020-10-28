@@ -1,58 +1,61 @@
 import configparser
 
+# ----------------------------------------------------------------
+# Source code is below, Constants and Imports are above
+# ----------------------------------------------------------------
 
 # CONFIG
 config = configparser.ConfigParser()
-config.read('dwh.cfg')
+config.read("dwh.cfg")
 
 # DROP TABLES
 
-staging_events_table_drop = "DROP TABLE IF EXISTS event_staging;"
-staging_songs_table_drop = "DROP TABLE IF EXISTS song_staging;"
-songplay_table_drop = "DROP TABLE IF EXISTS songplay;"
-user_table_drop = "DROP TABLE IF EXISTS user;"
-song_table_drop = "DROP TABLE IF EXISTS song;"
-artist_table_drop = "DROP TABLE IF EXISTS artist;"
-time_table_drop = "DROP TABLE IF EXISTS time;"
+staging_events_table_drop = """DROP TABLE IF EXISTS "event_staging";"""
+staging_songs_table_drop = """DROP TABLE IF EXISTS "song_staging";"""
+songplay_table_drop = """DROP TABLE IF EXISTS "songplay";"""
+user_table_drop = """DROP TABLE IF EXISTS "user"; """
+song_table_drop = """DROP TABLE IF EXISTS "song";"""
+artist_table_drop = """DROP TABLE IF EXISTS "artist";"""
+time_table_drop = """DROP TABLE IF EXISTS "time";"""
 
 # CREATE TABLES
 
-staging_events_table_create= ("""
+staging_events_table_create = """
     CREATE TABLE event_staging (
-        sessionId INTEGER NOT NULL,
-        itemInSession INTEGER,
-        userid INTEGER NOT NULL,
-        artist_name VARCHAR(100) NOT NULL,
+        sessionId VARCHAR(250),
+        itemInSession VARCHAR(100),
+        userid VARCHAR(100),
+        artist_name VARCHAR(100),
         auth VARCHAR(100),
         firstName VARCHAR(50),
         lastName VARCHAR(50),
-        gender CHAR,
-        length FLOAT,
+        gender VARCHAR(10),
+        length VARCHAR(100),
         level VARCHAR(50),
         location VARCHAR(250),
         method VARCHAR(50),
         page VARCHAR(100),
-        registration VARCHAR(100),
-        title VARCHAR(250) NOT NULL,
-        status SMALLINT,
-        ts DATE,
+        registration VARCHAR(250),
+        title VARCHAR(250),
+        status VARCHAR(100),
+        ts VARCHAR(250),
         userAgent VARCHAR(250)
     );
-""")
+"""
 
-staging_songs_table_create = (""" 
+staging_songs_table_create = """ 
     CREATE TABLE song_staging (
         num_songs INTEGER,
-        artist_id VARCHAR(100) NOT NULL,
-        artist_name VARCHAR(100) NOT NULL,
-        song_id VARCHAR(100) NOT NULL,
-        title VARCHAR(250) NOT NULL,
+        artist_id VARCHAR(100),
+        artist_name VARCHAR(100),
+        song_id VARCHAR(100),
+        title VARCHAR(250),
         duration FLOAT,
-        year INTEGER
+        year VARCHAR(10)
     );
-""")
+"""
 
-songplay_table_create = ("""
+songplay_table_create = """
     CREATE TABLE songplay (
         songplay_id INTEGER PRIMARY KEY NOT NULL,
         start_time DATE,
@@ -64,19 +67,19 @@ songplay_table_create = ("""
         location VARCHAR(50),
         user_agent VARCHAR(50)
     );
-""")
+"""
 
-user_table_create = ("""
-    CREATE TABLE user (
+user_table_create = """
+    CREATE TABLE "user" (
         user_id INTEGER PRIMARY KEY NOT NULL,
         first_name VARCHAR(50),
         last_name VARCHAR(50),
         gender CHAR,
-        level SHORTINT
+        level INTEGER
     );
-""")
+"""
 
-song_table_create = ("""
+song_table_create = """
     CREATE TABLE song (
         song_id INTEGER PRIMARY KEY NOT NULL,
         title VARCHAR(100),
@@ -84,9 +87,9 @@ song_table_create = ("""
         year INTEGER,
         duration REAL
     );
-""")
+"""
 
-artist_table_create = ("""
+artist_table_create = """
     CREATE TABLE artist (
         artist_id INTEGER PRIMARY KEY NOT NULL,
         name VARCHAR(50) NOT NULL,
@@ -94,9 +97,9 @@ artist_table_create = ("""
         latitude REAL,
         longitude REAL
     );
-""")
+"""
 
-time_table_create = ("""
+time_table_create = """
     CREATE TABLE time (
         start_time TIMESTAMP PRIMARY KEY NOT NULL,
         hour INTEGER,
@@ -106,52 +109,88 @@ time_table_create = ("""
         year INTEGER,
         weekday INTEGER
     );
-""")
+"""
 
 # STAGING TABLES
 
-staging_events_copy = ("""
-    copy table 'staging_events' from 's3://udacity-dend/log_data'
+staging_events_copy = (
+    """
+    COPY "event_staging" from '{}'
     credentials 'aws_iam_role={}'
-    gzip region 'us-west-2';
-""").format(config['IAM_ROLE'])
+    format as json '{}'
+    region 'us-west-2';
+"""
+).format(
+    config["S3"]["LOG_DATA"], config["IAM_ROLE"]["ARN"], config["S3"]["LOG_JSONPATH"]
+)
 
-staging_songs_copy = ("""
-    copy table 'staging_events' from 's3://udacity-dend/song_data'
+staging_songs_copy = (
+    """
+    COPY "song_staging" from '{}'
     credentials 'aws_iam_role={}'
-    gzip region 'us-west-2';
-""").format(config['IAM_ROLE'])
+    json 'auto'
+    region 'us-west-2';
+"""
+).format(config["S3"]["SONG_DATA"], config["IAM_ROLE"]["ARN"])
 
 # FINAL TABLES
+songplay_table_insert = (
+    """INSERT INTO songplay VALUES ({}) ON CONFLICT (songplay_id) DO NOTHING;"""
+)
+songplay_table_cols = (
+    "songplay_id",
+    "start_time",
+    "user_id",
+    "level",
+    "song_id",
+    "artist_id",
+    "session_id",
+    "location",
+    "user_agent",
+)
 
-songplay_table_insert = ("""INSERT INTO songplay (
-        songplay_id, start_time, user_id, level, song_id, artist_id, session_id, location, user_agent
-    ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s) ON CONFLICT (songplay_id) DO NOTHING;
-""")
+user_table_insert = (
+    """ INSERT INTO songplay VALUES ({}) ON CONFLICT (user_id) DO NOTHING;"""
+)
+user_table_cols = ("user_id", "first_name", "last_name", "gender", "level")
 
-user_table_insert = (""" INSERT INTO songplay (
-        user_id, first_name, last_name, gender, level
-    ) VALUES (%s, %s, %s, %s, %s) ON CONFLICT (user_id) DO NOTHING;
-""")
+song_table_insert = """INSERT INTO song VALUES ({}) ON CONFLICT (song_id) DO NOTHING;"""
+song_table_cols = ("song_id", "title", "artist_id", "year", "duration")
 
-song_table_insert = ("""INSERT INTO song (
-        song_id, title, artist_id, year, duration
-    ) VALUES (%s, %s, %s, %s, %s) ON CONFLICT (song_id) DO NOTHING;
-""")
+artist_table_insert = (
+    """INSERT INTO artist VALUES ({}) ON CONFLICT (artist_id) DO NOTHING;"""
+)
+artist_table_cols = ("artist_id", "name", "location", "latitude", "longitude")
 
-artist_table_insert = ("""INSERT INTO artist (
-        artist_id, name, location, latitude, longitude
-    ) VALUES (%s, %s, %s, %s, %s) ON CONFLICT (artist_id) DO NOTHING;
-""")
-
-time_table_insert = ("""INSERT INTO time (
-    start_time, hour, day, week, month, year, weekday
-    ) VALUES (%s, %s, %s, %s, %s, %s, %s) ON CONFLICT (start_time) DO NOTHING;
-""")
+time_table_insert = (
+    """INSERT INTO time VALUES ({}) ON CONFLICT (start_time) DO NOTHING;"""
+)
+time_table_cols = ("start_time", "hour", "day", "week", "month", "year", "weekday")
 
 # QUERY LISTS
-
-create_table_queries = [staging_events_table_create, staging_songs_table_create, songplay_table_create, user_table_create, song_table_create, artist_table_create, time_table_create]
-drop_table_queries = [staging_events_table_drop, staging_songs_table_drop, songplay_table_drop, user_table_drop, song_table_drop, artist_table_drop, time_table_drop]
+create_table_queries = [
+    staging_events_table_create,
+    staging_songs_table_create,
+    songplay_table_create,
+    user_table_create,
+    song_table_create,
+    artist_table_create,
+    time_table_create,
+]
+drop_table_queries = [
+    staging_events_table_drop,
+    staging_songs_table_drop,
+    songplay_table_drop,
+    user_table_drop,
+    song_table_drop,
+    artist_table_drop,
+    time_table_drop,
+]
 copy_table_queries = [staging_events_copy, staging_songs_copy]
-insert_table_queries = [songplay_table_insert, user_table_insert, song_table_insert, artist_table_insert, time_table_insert]
+insert_table_queries = [
+    (songplay_table_insert, songplay_table_cols),
+    (user_table_insert, user_table_cols),
+    (song_table_insert, song_table_cols),
+    (artist_table_insert, artist_table_cols),
+    (time_table_insert, time_table_cols),
+]

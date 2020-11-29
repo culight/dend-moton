@@ -30,7 +30,12 @@ LOGGER = logging.getLogger("create_tables")
 
 
 def create_cluster(config):
-    """ Initialize the cluster"""
+    """
+    Description: Initialize the cluster
+
+    Arguments:
+      config: configuration object
+    """
 
     # initialize aws client
     LOGGER.debug("initializing AWS resources")
@@ -69,7 +74,13 @@ def create_cluster(config):
 
 
 def drop_tables(cur, conn):
-    """Remove tables from database"""
+    """
+    Description: Remove tables from database
+
+    Arguments:
+      cur: cursor object
+      conn: postgresql database client
+    """
     LOGGER.debug("clearing existing tables")
     for query in drop_table_queries:
         cur.execute(query)
@@ -77,7 +88,13 @@ def drop_tables(cur, conn):
 
 
 def create_tables(cur, conn):
-    """Create the tables in the database"""
+    """
+    Description: Create the tables in the database
+
+    Arguments:
+      cur: cursor object
+      conn: postgresql database client
+    """
     LOGGER.debug("creating tables")
     for query in create_table_queries:
         cur.execute(query)
@@ -85,7 +102,13 @@ def create_tables(cur, conn):
 
 
 def copy_data(cur, conn):
-    """Copt data into the staging tables"""
+    """
+    Description: Copy data into the staging tables
+
+    Arguments:
+      cur: cursor object
+      conn: postgresql database client
+    """
     LOGGER.debug("copying data from S3")
     for query in copy_table_queries:
         LOGGER.debug("copying data...")
@@ -94,7 +117,13 @@ def copy_data(cur, conn):
 
 
 def insert_tables(cur, conn):
-    """Insert data into other tables from staging tables"""
+    """
+    Description: Insert data into other tables from staging tables
+    
+    Arguments:
+      cur: cursor object
+      conn: postgresql database client
+    """
     for query in insert_table_queries:
         cur.execute(query)
     conn.commit()

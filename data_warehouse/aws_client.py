@@ -37,6 +37,12 @@ class aws_client:
         self.config["region"] = config.get("DWH", "DWH_REGION")
 
     def init_resources(self, resource_names):
+        """
+        Description: Initialize AWS resources
+
+        Arguments:
+          resource_names: list of resources to initialize
+        """
         assert resource_names, "Provide list of aws services to be initialized"
         self.resources = {}
         for resource_name in resource_names:
@@ -51,6 +57,12 @@ class aws_client:
         return self.resources
 
     def init_clients(self, client_names):
+        """
+        Description: Initialize AWS clients
+
+        Arguments:
+          client_names: list of client names to include
+        """
         assert client_names, "Provide list of aws services to be initialized"
         self.clients = {}
         for client_name in client_names:
@@ -65,6 +77,12 @@ class aws_client:
         return self.clients
 
     def init_buckets(self, bucket_names):
+        """
+        Description: Initialize S3 buckets
+
+        Arguments:
+          bucket_names: list of buckets to initialize
+        """
         assert bucket_names, "Provide list of bucket names to be initialized"
         self.buckets = {}
         for bucket_name in bucket_names:
@@ -74,6 +92,15 @@ class aws_client:
         return self.buckets
 
     def init_role(self, policy, policy_doc, description=""):
+        """
+        Description: Initialize AWS roles
+
+        Arguments:
+          policy: name of policy to initialize
+          policy_doc: role policy document
+          description: provided description of the role
+
+        """
         # get role if it already exists, otherwise create one
         self.role = None
         try:
@@ -108,6 +135,9 @@ class aws_client:
         return self.role, self.role_arn
 
     def init_cluster(self):
+        """
+        Description: Initialize redshift cluster
+        """
         try:
             self.cluster = self.clients["redshift"].describe_clusters(
                 ClusterIdentifier=self.config["cluster_id"]

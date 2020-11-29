@@ -1,6 +1,6 @@
 # ----------------------------------------------------------------
 # Author: Demerrick Moton
-# Summary: Wrapper for AWS Data Warehousing Sparkify hosting and management 
+# Summary: Wrapper for AWS Data Warehousing Sparkify hosting and management
 # ----------------------------------------------------------------
 import logging
 import json
@@ -69,6 +69,7 @@ def create_cluster(config):
 
 
 def drop_tables(cur, conn):
+    """Remove tables from database"""
     LOGGER.debug("clearing existing tables")
     for query in drop_table_queries:
         cur.execute(query)
@@ -76,6 +77,7 @@ def drop_tables(cur, conn):
 
 
 def create_tables(cur, conn):
+    """Create the tables in the database"""
     LOGGER.debug("creating tables")
     for query in create_table_queries:
         cur.execute(query)
@@ -83,6 +85,7 @@ def create_tables(cur, conn):
 
 
 def copy_data(cur, conn):
+    """Copt data into the staging tables"""
     LOGGER.debug("copying data from S3")
     for query in copy_table_queries:
         LOGGER.debug("copying data...")
@@ -91,12 +94,14 @@ def copy_data(cur, conn):
 
 
 def insert_tables(cur, conn):
+    """Insert data into other tables from staging tables"""
     for query in insert_table_queries:
         cur.execute(query)
     conn.commit()
 
 
 def main():
+    """Main function housing the high level execution of the code"""
     # setup configuration
     config = configparser.ConfigParser()
     config.read("dwh.cfg")

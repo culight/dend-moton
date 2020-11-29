@@ -102,6 +102,7 @@ def insert_tables(cur, conn):
 
 def main():
     """Main function housing the high level execution of the code"""
+
     # setup configuration
     config = configparser.ConfigParser()
     config.read("dwh.cfg")

@@ -152,7 +152,8 @@ songplay_table_insert = """
     JOIN event_staging event
     ON song.title = event.title
     AND song.artist_name = event.artist_name
-    AND song.duration = event.length;
+    AND song.duration = event.length
+    WHERE event.page = 'NextSong';
 """
 
 user_table_insert = """

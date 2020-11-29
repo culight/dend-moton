@@ -1,3 +1,8 @@
+# ----------------------------------------------------------------
+# Author: Demerrick Moton
+# Summary: Houses the AWS client driver code
+# ----------------------------------------------------------------
+
 import boto3
 from botocore.exceptions import ClientError
 import pandas as pd
@@ -195,7 +200,7 @@ class aws_client:
             self.clients["iam"].detach_role_policy(
                 RoleName=self.config["iam_role_name"], PolicyArn=policy,
             )
-            time.sleep(3)
+        time.sleep(10)
         self.clients["redshift"].delete_cluster(
             ClusterIdentifier=self.config["cluster_id"], SkipFinalClusterSnapshot=True
         )

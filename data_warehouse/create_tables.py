@@ -1,3 +1,7 @@
+# ----------------------------------------------------------------
+# Author: Demerrick Moton
+# Summary: Wrapper for AWS Data Warehousing Sparkify hosting and management 
+# ----------------------------------------------------------------
 import logging
 import json
 
@@ -86,11 +90,9 @@ def copy_data(cur, conn):
     conn.commit()
 
 
-def load_tables(cur, conn):
-    LOGGER.debug("loading tables with data")
-    for query, cols in insert_table_queries:
-        final_query = query.format(", ".join(col for col in cols))
-        cur.execute(final_query)
+def insert_tables(cur, conn):
+    for query in insert_table_queries:
+        cur.execute(query)
     conn.commit()
 
 
@@ -117,7 +119,7 @@ def main():
     drop_tables(cur, conn)
     create_tables(cur, conn)
     copy_data(cur, conn)
-    load_tables(cur, conn)
+    insert_tables(cur, conn)
 
     conn.close()
     sparkify_client.disconnect()

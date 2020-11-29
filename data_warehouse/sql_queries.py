@@ -1,3 +1,8 @@
+# ----------------------------------------------------------------
+# Author: Demerrick Moton
+# Summary: Houses the various SQL events for Sparkify
+# ----------------------------------------------------------------
+
 import configparser
 
 # ----------------------------------------------------------------
@@ -22,24 +27,24 @@ time_table_drop = """DROP TABLE IF EXISTS "time";"""
 
 staging_events_table_create = """
     CREATE TABLE event_staging (
-        sessionId VARCHAR(250),
-        itemInSession VARCHAR(100),
-        userid VARCHAR(100),
-        artist_name VARCHAR(100),
+        artist_name VARCHAR(250),
         auth VARCHAR(100),
-        firstName VARCHAR(50),
-        lastName VARCHAR(50),
-        gender VARCHAR(10),
-        length VARCHAR(100),
+        first_name VARCHAR(50),
+        gender CHAR,
+        item_in_session INTEGER,
+        last_name VARCHAR(50),
+        length FLOAT,
         level VARCHAR(50),
         location VARCHAR(250),
-        method VARCHAR(50),
+        method VARCHAR(10),
         page VARCHAR(100),
         registration VARCHAR(250),
+        session_id VARCHAR(10),
+        status VARCHAR(250),
         title VARCHAR(250),
-        status VARCHAR(100),
-        ts VARCHAR(250),
-        userAgent VARCHAR(250)
+        ts BIGINT,
+        useragent VARCHAR(250),
+        user_id VARCHAR(100)
     );
 """
 
@@ -47,23 +52,25 @@ staging_songs_table_create = """
     CREATE TABLE song_staging (
         num_songs INTEGER,
         artist_id VARCHAR(100),
+        artist_latitude REAL,
+        artist_longitude REAL,
+        artist_location VARCHAR(250),
         artist_name VARCHAR(100),
         song_id VARCHAR(100),
         title VARCHAR(250),
         duration FLOAT,
-        year VARCHAR(10)
+        year INTEGER
     );
 """
-
 songplay_table_create = """
     CREATE TABLE songplay (
-        songplay_id INTEGER PRIMARY KEY NOT NULL,
-        start_time DATE,
-        user_id INTEGER NOT NULL,
-        level VARCHAR(10),
-        song_id INTEGER NOT NULL,
-        artist_id INTEGER NOT NULL,
-        session_id INTEGER NOT NULL,
+        songplay_id INTEGER IDENTITY(0,1) PRIMARY KEY,
+        start_time TIMESTAMP,
+        user_id VARCHAR(100) NOT NULL,
+        level VARCHAR(50),
+        song_id VARCHAR(100) NOT NULL,
+        artist_id VARCHAR(100) NOT NULL,
+        session_id VARCHAR(100) NOT NULL,
         location VARCHAR(50),
         user_agent VARCHAR(50)
     );
@@ -71,29 +78,29 @@ songplay_table_create = """
 
 user_table_create = """
     CREATE TABLE "user" (
-        user_id INTEGER PRIMARY KEY NOT NULL,
+        user_id VARCHAR(100) PRIMARY KEY,
         first_name VARCHAR(50),
         last_name VARCHAR(50),
         gender CHAR,
-        level INTEGER
+        level VARCHAR(50)
     );
 """
 
 song_table_create = """
     CREATE TABLE song (
-        song_id INTEGER PRIMARY KEY NOT NULL,
+        song_id VARCHAR(100) PRIMARY KEY,
         title VARCHAR(100),
-        artist_id INTEGER NOT NULL,
-        year INTEGER,
+        artist_id VARCHAR(100) NOT NULL,
+        year VARCHAR(10),
         duration REAL
     );
 """
 
 artist_table_create = """
     CREATE TABLE artist (
-        artist_id INTEGER PRIMARY KEY NOT NULL,
-        name VARCHAR(50) NOT NULL,
-        location VARCHAR(50),
+        artist_id VARCHAR(100) PRIMARY KEY,
+        name VARCHAR(100) NOT NULL,
+        location VARCHAR(250),
         latitude REAL,
         longitude REAL
     );
@@ -101,7 +108,7 @@ artist_table_create = """
 
 time_table_create = """
     CREATE TABLE time (
-        start_time TIMESTAMP PRIMARY KEY NOT NULL,
+        start_time TIMESTAMP,
         hour INTEGER,
         day INTEGER,
         week INTEGER,
@@ -134,38 +141,68 @@ staging_songs_copy = (
 ).format(config["S3"]["SONG_DATA"], config["IAM_ROLE"]["ARN"])
 
 # FINAL TABLES
-songplay_table_insert = (
-    """INSERT INTO songplay VALUES ({}) ON CONFLICT (songplay_id) DO NOTHING;"""
-)
-songplay_table_cols = (
-    "songplay_id",
-    "start_time",
-    "user_id",
-    "level",
-    "song_id",
-    "artist_id",
-    "session_id",
-    "location",
-    "user_agent",
-)
+songplay_table_insert = """
+    INSERT INTO songplay (
+        start_time, user_id, level, song_id, artist_id, session_id, location, user_agent
+    )
+    SELECT DISTINCT
+        TIMESTAMP 'epoch' + event.ts/1000 * INTERVAL '1 second' AS start_time,
+        event.user_id, event.level, song.song_id, song.artist_id, event.session_id, event.location, event.useragent
+    FROM song_staging song 
+    JOIN event_staging event
+    ON song.title = event.title
+    AND song.artist_name = event.artist_name
+    AND song.duration = event.length;
+"""
 
-user_table_insert = (
-    """ INSERT INTO songplay VALUES ({}) ON CONFLICT (user_id) DO NOTHING;"""
-)
-user_table_cols = ("user_id", "first_name", "last_name", "gender", "level")
+user_table_insert = """
+    INSERT INTO "user" (
+        user_id, first_name, last_name, gender, level
+    )
+    SELECT DISTINCT user_id, first_name, last_name, gender, level
+    FROM event_staging
+    WHERE user_id IS NOT NULL;
+"""
 
-song_table_insert = """INSERT INTO song VALUES ({}) ON CONFLICT (song_id) DO NOTHING;"""
-song_table_cols = ("song_id", "title", "artist_id", "year", "duration")
+song_table_insert = """
+    INSERT INTO song (
+        song_id, title, artist_id, year, duration
+    )
+    SELECT DISTINCT song_id, title, artist_id, year, duration
+    FROM song_staging
+    WHERE song_id IS NOT NULL;
+"""
 
-artist_table_insert = (
-    """INSERT INTO artist VALUES ({}) ON CONFLICT (artist_id) DO NOTHING;"""
-)
-artist_table_cols = ("artist_id", "name", "location", "latitude", "longitude")
+artist_table_insert = """
+    INSERT INTO artist (
+        artist_id, name, location, latitude, longitude
+    )
+    SELECT DISTINCT 
+        artist_id, artist_name, artist_location, artist_latitude, artist_longitude
+    FROM song_staging
+    WHERE artist_id IS NOT NULL;
+"""
 
-time_table_insert = (
-    """INSERT INTO time VALUES ({}) ON CONFLICT (start_time) DO NOTHING;"""
-)
-time_table_cols = ("start_time", "hour", "day", "week", "month", "year", "weekday")
+time_table_insert = """
+    INSERT INTO time (
+        start_time, hour, day, week, month, year, weekday
+    )
+    WITH time_converted AS (
+        SELECT
+            DISTINCT TIMESTAMP 'epoch' + ts/1000 * INTERVAL '1 second' AS start_time
+        FROM event_staging
+        WHERE ts IS NOT NULL
+    )
+    SELECT
+        start_time AS start_time,
+        extract(hour from start_time),
+        extract(day from start_time),
+        extract(week from start_time),
+        extract(month from start_time),
+        extract(year from start_time),
+        extract(weekday from start_time)
+    FROM time_converted;
+"""
 
 # QUERY LISTS
 create_table_queries = [
@@ -188,9 +225,9 @@ drop_table_queries = [
 ]
 copy_table_queries = [staging_events_copy, staging_songs_copy]
 insert_table_queries = [
-    (songplay_table_insert, songplay_table_cols),
-    (user_table_insert, user_table_cols),
-    (song_table_insert, song_table_cols),
-    (artist_table_insert, artist_table_cols),
-    (time_table_insert, time_table_cols),
+    songplay_table_insert,
+    user_table_insert,
+    song_table_insert,
+    artist_table_insert,
+    # time_table_insert,
 ]

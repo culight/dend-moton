@@ -162,7 +162,8 @@ user_table_insert = """
     )
     SELECT DISTINCT user_id, first_name, last_name, gender, level
     FROM event_staging
-    WHERE user_id IS NOT NULL;
+    WHERE user_id IS NOT NULL
+    AND page = 'NextSong';
 """
 
 song_table_insert = """
@@ -193,6 +194,7 @@ time_table_insert = """
             DISTINCT TIMESTAMP 'epoch' + ts/1000 * INTERVAL '1 second' AS start_time
         FROM event_staging
         WHERE ts IS NOT NULL
+        AND page = 'NextSong'
     )
     SELECT
         start_time AS start_time,
